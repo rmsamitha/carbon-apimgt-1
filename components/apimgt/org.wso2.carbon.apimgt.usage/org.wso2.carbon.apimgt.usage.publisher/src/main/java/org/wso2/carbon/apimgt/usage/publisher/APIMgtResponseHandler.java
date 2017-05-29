@@ -31,6 +31,8 @@ import org.wso2.carbon.apimgt.impl.APIConstants;
 import org.wso2.carbon.apimgt.usage.publisher.dto.ResponsePublisherDTO;
 import org.wso2.carbon.apimgt.usage.publisher.internal.UsageComponent;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import javax.xml.stream.XMLStreamException;
 import java.io.IOException;
@@ -43,6 +45,7 @@ import java.util.Map;
 */
 
 public class APIMgtResponseHandler extends APIMgtCommonExecutionPublisher {
+    public static final Log httpLogger = LogFactory.getLog("http.logger");
 
     public APIMgtResponseHandler() {
         super();
@@ -153,6 +156,14 @@ public class APIMgtResponseHandler extends APIMgtCommonExecutionPublisher {
             responsePublisherDTO
                     .setDestination((String) mc.getProperty(APIMgtGatewayConstants.SYNAPSE_ENDPOINT_ADDRESS));
             responsePublisherDTO.setResponseCode((Integer) axis2MC.getProperty(SynapseConstants.HTTP_SC));
+
+            httpLogger.info( "|" + startTime + "|" + backendStartTime + "|" + responseTime + "|" + backendTime + "|"
+                    + serviceTime + "|" + mc.getProperty("SYNAPSE_REST_API") + "|" + mc
+                    .getProperty("REST_FULL_REQUEST_PATH") + "|" + mc.getProperty("api.ut.HTTP_METHOD") + "|" + mc
+                    .getProperty("ENDPOINT_ADDRESS") + "|" + cacheHit + "|" + axis2MC
+                    .getProperty(SynapseConstants.HTTP_SC) + "|" + "ResponseHandler" + "||");
+
+            // startTimeStamp|backendStartTimeStamp|elapsed|backendElapsed|serviceTime|API|APIRequestPath|httpMethod|backendUrl|cacheHit|responseCode|handler|faultMessage|faultDescription
 
             String url = (String) mc.getProperty(RESTConstants.REST_URL_PREFIX);
 

@@ -22,6 +22,7 @@ import {Route, Switch, Redirect} from 'react-router-dom'
 import Overview from './Overview'
 import NavBar from './NavBar'
 import LifeCycle from './LifeCycle'
+import Documents from './Documents'
 import {PageNotFound} from '../../Base/Errors/index'
 import Loading from '../../Base/Loading/Loading'
 import Resources from './Resources'
@@ -72,6 +73,9 @@ export default class Details extends Component {
                                    render={ props => <Overview api={this.state.response.obj} {...props} /> }/>
                             <Route path="/apis/:api_uuid/lifecycle" component={LifeCycle}/>
                             <Route path="/apis/:api_uuid/resources" component={Resources}/>
+                            <Route path="/apis/:api_uuid/documents" render={() => <Documents apiDetails={this.state.response.obj}/>
+                            }
+                            />
                             <Route component={PageNotFound}/>
                         </Switch>
                     </div>

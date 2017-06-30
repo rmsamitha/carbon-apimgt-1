@@ -18,19 +18,23 @@
 
 import React, {Component} from 'react'
 import API from '../../../data/api.js'
-import ReactDOM from 'react-dom'
+import {hasValidScopes} from '../../../utils/action-buttons'
 
 class Documents extends Component {
     constructor(props) {
         super(props);
-        //this._renderActionButtons();
-        this.toggleDocAdder = this.toggleDocAdder.bind(this);
-        this.setHandlers();
-        this.client = new API();
-        this.api_id = props.apiDetails.id;
-
     }
 
+    componentDidMount() {
+        this.client = new API();
+        this.api_id = this.props.apiDetails.id;
+        this.selectedSourceType = "INLINE";
+        this.displayDocumentsTable();
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        this.displayDocumentsTable();
+    }
 
     _renderActionButtons() {
         // if (type === "display") {
@@ -117,10 +121,13 @@ class Documents extends Component {
             api_client: client,
             api_id: api_id
         }, this.getAPIDocumentByDocId);
-        $(document).on('click', "#add-doc-submit", {
+
+     /*   $(document).on('click', "#add-doc-submit", {
             api_client: client,
             api_id: api_id
-        }, this.createDocHandler);
+        }, this.createDocHandler);*/
+      //  this.btnAddDocSubmit.onClick = this.createDocHandler;
+
         $(document).on('click', "#update-doc-submit", {
             api_client: client,
             api_id: api_id
@@ -129,52 +136,124 @@ class Documents extends Component {
             api_client: client,
             api_id: api_id
         }, this.viewDocContentHandler);
-        $(document).on('click', "#add-new-doc", {}, this.toggleDocAdder);
+        //$(document).on('click', "#add-new-doc", {}, this.viewDocAdder);
     }
 
-    toggleDocAdder() {
-
-        //this.addNewDocBtn.style.display='none'; //toggle
+    /*
+     "Add New Document" button onClick event listener. (View new doc adding-div when the "Add New Document" button clicked)
+     */
+    viewDocAdder() {
         this.divNewDoc.style.display = 'block';
-        //ReactDOM.findDOMNode(this.addNewDocBtn).style.display = 'block';
         this.btnAddDocSubmit.style.display = 'block';
-        //ReactDOM.findDOMNode('add-doc-submit').style.display = 'block';
         this.btnUpdateDocSubmit.style.display = 'none';
-        //ReactDOM.findDOMNode('update-doc-submit').style.display = 'none';
+        this.addNewDocBtn.style.pointerEvents="none";
+        this.addNewDocBtn.style.cursor="default";
         this.inputDocName.value = '';
         this.textAreaSummary.value = '';
         this.inputDocUrl.value = '';
         this.inputDocFileText.value = '';
-        this.divFileName.text = '';
         this.inputOptionsRadios1.checked = true;
-        this.btnToggleFileDoc.style.display = 'none';
-        /* $('#newDoc').toggle();
-         $('#docName').val('');
-         $('#summary').val('');
-         $('#docUrl').val('');
-         $('#doc-file-text').val('');
-         $('#fileNameDiv').text('');
-         $('#optionsRadios1').prop("checked", true);
-         $('#toggleFileDoc').hide();*/
     }
 
+    /*
+        Display the documents tab content
+     */
+    displayDocumentsTable() {
+        this.client.get(this.api_id).then(
+            (response) => {
+                var api_data = JSON.parse(response.data);
+                //display documents table if available any
+                this.client.getDocuments(this.api_id, this.getDocsCallback);
+                //disable "Add New Document" button if doesn't have valid scopes
+                if (!hasValidScopes("/apis/{apiId}/documents", "post")) {
+                    //TODO add a common button inactive style
+                    this.addNewDocBtn.style.pointerEvents="none";
+                    this.addNewDocBtn.style.cursor="default";                }
+                //Disable edit buttons based on logged in user role permissions
+                var userPermissions = api_data.userPermissionsForApi;
+                if (!userPermissions.includes("UPDATE")) {
+                    //TODO add a common button inactive style
+                    this.addNewDocBtn.style.pointerEvents="none";
+                    this.addNewDocBtn.style.cursor="default";
+                }
+            }
+
+            //).catch(Details.apiGetErrorHandler);
+        ).catch((e) => {
+            if (window.console) {
+                console.error("Failed getting details of the API:", e.stack);
+            }
+        });
+    }
+
+    /*
+    Show the list of documents added into an API in a table
+     */
+    getDocsCallback =  function(response) {
+        var data = response.obj.list;
+        this.state = {documents:response.obj.list};
+        this.documents = response.obj.list;
+
+        if (this.documents.length > 0) {
+            this.documents.map(this.addItemToDocsTable.bind(this));
+            this.divDocContent.style.display = 'block';
+            this.divNoDocs.style.display = 'none';
+            //$('#no-docs-div').hide();
+        } else {
+           // $('#no-docs-div').show();
+           // $('.doc-content').hide();
+            this.divDocContent.style.display = 'none';
+            this.divNoDocs.style.display = 'block';
+        }
+    }.bind(this);
+
+    /*
+    Add each document details to the documents table
+     */
+    addItemToDocsTable(docData){
+        var row = this.tblDocs.insertRow(-1);
+
+        var docNameCell = row.insertCell(0);
+        var docSourceTypeCell = row.insertCell(1);
+        var docSummaryCell = row.insertCell(2);
+        var docSourceURLCell = row.insertCell(3);
+        var docActionsCell = row.insertCell(4);
+
+        docNameCell.innerHTML = docData.name;
+        docSourceTypeCell.innerHTML = docData.sourceType;
+        docSummaryCell.innerHTML = docData.summary;
+        docSourceURLCell.innerHTML = docData.sourceUrl;
+
+        var actionsDiv = '<div>' +
+            '    		      <i>Edit</i>' +
+            '        	      <i>View</i>' +
+            '        	      <i>Delete</i>' +
+            '             </div>';
+        docActionsCell.insertAdjacentHTML( 'beforeend', actionsDiv );
+        //docActionsCell.innerHTML = actionsDiv;
+
+    }
 
     /**
-     * Jquery event handler on click event for api create submit button
+     * Event handler on click event for api creation submit button "Add"
      *
      * @param event
      */
     createDocHandler = function createDocHandlerFunction() {
-        //var api_id = event.data.api_id;
-        console.log(this.textAreaSummary.value);
+        //input validations
+        if (this.inputDocName.value == '' || (this.selectedSourceType == 'URL' && this.inputDocUrl.value == '') || (this.selectedSourceType == 'FILE' && this.inputBrowsedFile.files.length == 0)) {
+            //TODO Provide appropriate alert/display message to request to fill all the required fields
+            alert("Please fill all the required fields");
+            return;
+        }
         var api_client = this.client;
         var api_documents_data = {
             documentId: "",
-            name: this.inputDocName.value, //$('#docName').val(),
+            name: this.inputDocName.value,
             type: "HOWTO",
-            summary: this.textAreaSummary.value,//('#summary').val(),
+            summary: this.textAreaSummary.value,
             sourceType: this.selectedSourceType,
-            sourceUrl: "",//this.inputDocUrl,
+            sourceUrl: this.inputDocUrl.value,
             inlineContent: "string",
             //otherTypeName: $('#specifyBox').val(),
             permission: '[{"groupId" : "1000", "permission" : ["READ","UPDATE"]},{"groupId" : "1001", "permission" : ["READ","UPDATE"]}]',
@@ -201,33 +280,27 @@ class Documents extends Component {
             console.debug(error_response);
         }).then(function (done) {
             var dt_data = done.obj;
-            var documentId = dt_data.documentId;
-            var name = dt_data.name;
             var sourceType = dt_data.sourceType;
             var docId = dt_data.documentId;
 
             if (sourceType == "FILE") {
-                var file_input = $('#doc-file');
-                var file = file_input[0].files[0];
-                var promised_add_file = api_client.addFileToDocument(api_id, docId, file);
+                var file = this.inputBrowsedFile.files[0]
+                var promised_add_file = api_client.addFileToDocument(this.api_id, docId, file);
                 promised_add_file.catch(function (error) {
                 }).then(function (done) {
                     var addedFile = done;
                 });
             }
 
-            $('.doc-content').show();
+            this.setState({documents:this.state.documents.push(api_documents_data)});
+            this.divDocContent.style.display = 'block';
+            this.divNoDocs.style.display = 'none';
+            this.divNewDoc.style.display = 'none';
+            this.addNewDocBtn.style.pointerEvents="auto";
+            this.addNewDocBtn.style.cursor="pointer";
             $('#no-docs-div').hide();
             $('#newDoc').fadeOut();
-
-            var data_table = $('#doc-table').DataTable();
-            data_table.row.add({
-                documentId,
-                name,
-                sourceType,
-                _renderActionButtons
-            }).draw();
-        });
+        }.bind(this));
     }.bind(this);
 
 
@@ -296,10 +369,13 @@ class Documents extends Component {
     }
 
     cancelDocForm() {
-        $('#newDoc').fadeOut('slow');
-        $('#doc-header').show();
-        $('#updateDoc').hide();
+        this.divNewDoc.style.display='none';
+        this.addNewDocBtn.style.display='block';
+        this.addNewDocBtn.style.pointerEvents="auto";
+        this.addNewDocBtn.style.cursor="pointer";
+        //$('#updateDoc').hide();
     }
+
 
 
     render() {
@@ -307,16 +383,13 @@ class Documents extends Component {
             <div id="document-content" className="tab-content col-md-6 col-sm-6">
                 <div className="row-fluid">
                     <div className="control-group">
-                        <input type="hidden" id="docAPIVersion" value="1.0"/>
-                        <input type="hidden" id="docAPIName" value="test"/>
                         <input type="hidden" id="docId" value="test"/>
                         <div id="doc-header">
-                            <a id="add-new-doc" href="#" ref={(button) => {
+                            <a id="add-new-doc" ref={(button) => {
                                 this.addNewDocBtn = button
                             }} title="Add New Document"
                                onClick={() => {
-                                   //ref="addNewDoc"
-                                   this.toggleDocAdder();
+                                   this.viewDocAdder();
                                }}
                                className="btn btn-primary add-new-doc btn-sm padding-reduce-on-grid-view">
                                 <i className=" glyphicon glyphicon-plus-sign" title="Add New
@@ -330,7 +403,6 @@ class Documents extends Component {
                         </div>
                     </div>
                 </div>
-                {/*Row*/}
                 <div className="container-fluid" style={{paddingLeft: 0}}>
                     <div id="newDoc" ref={(div) => {
                         this.divNewDoc = div
@@ -345,7 +417,7 @@ class Documents extends Component {
                                                className="form-control required validInput"
                                                id="docName"
                                                ref={(input) => {
-                                                   this.inputDocName = input
+                                                   this.inputDocName = input;
                                                }}/>
                                         <input type="hidden" id="rowId"/>
                                     </div>
@@ -366,40 +438,27 @@ class Documents extends Component {
                                     <div className="form-group">
                                         <label className="control-label">Source</label>
                                         <ul className="nav">
+                                            {/*list of going-to-add-new document source type=> INLINE/URL/FILE*/}
                                             <li>
                                                 <label>
-                                                    <input type="radio" name="optionsRadios1"
+                                                    <input type="radio" name="docSourceTypeRadioGroup"
                                                            id="optionsRadios1" ref={(input) => {
                                                         this.inputOptionsRadios1 = input
                                                     }}
-                                                           value="INLINE"
-
                                                            onClick={() => {
                                                                this.divSourceUrlDoc.style.display = 'none';
                                                                this.divSourceFile.style.display = 'none';
                                                                this.selectedSourceType = "INLINE";
-                                                               this.inputDocUrl = "";
-
+                                                               this.inputDocUrl.value = "";
                                                            }
                                                            }
-                                                           checked=""/>Inline
-                                                    <a className="icon-question-sign help_popup"
-
-                                                       title="inlineDoc_help"></a>
-                                                    {/*<a className="icon-question-sign help_popup"
-                                                     help_data="inlineDoc_help"
-                                                     title="inlineDoc_help"></a>*/}
-                                                    <p id=" inlineDoc_help" className="hide">
-                                                        Documentation that is hosted in the
-                                                        system
-                                                        and can be edited directly from the UI
-                                                    </p>
+                                                    />Inline
                                                 </label>
                                             </li>
                                             <li>
                                                 <label>
-                                                    <input type="radio" name="optionsRadios1"
-                                                           id="optionsRadios2" value="URL"
+                                                    <input type="radio" name="docSourceTypeRadioGroup"
+                                                           id="optionsRadios2"
                                                            onClick={() => {
                                                                if (this.divSourceUrlDoc.style.display == 'block') {
                                                                    this.divSourceUrlDoc.style.display = 'none';
@@ -409,25 +468,12 @@ class Documents extends Component {
                                                                this.divSourceFile.style.display = 'none';
                                                                this.selectedSourceType = "URL";
                                                            }}
-                                                    />URL
-                                                    <a className="icon-question-sign help_popup"
-                                                       title=""
-                                                    ></a>
-                                                    {/* <a className="icon-question-sign help_popup"
-                                                     helpData="urlDoc_help" title=""
-                                                     urlDoc_help=""></a>*/}
-                                                    <p id="urlDoc_help" className="hide">
-                                                        Link to documentation is managed by an
-                                                        external
-                                                        configuration management system
-                                                    </p>
+                                                    />URL*
                                                 </label>
-
                                                 <div id="sourceUrlDoc" ref={(div) => {
                                                     this.divSourceUrlDoc = div
-                                                }} className="controls"
+                                                }}
                                                      style={{display: 'none'}}>
-                                                    <span className="requiredAstrix">*</span>
                                                     <input type="text"
                                                            className="form-control required"
                                                            title="docUrl" id="docUrl"
@@ -439,8 +485,8 @@ class Documents extends Component {
                                             </li>
                                             <li>
                                                 <label>
-                                                    <input type="radio" name="optionsRadios1"
-                                                           id="optionsRadios3" value="FILE"
+                                                    <input type="radio" name="docSourceTypeRadioGroup"
+                                                           id="optionsRadios3"
                                                            onClick={ () => {
                                                                if (this.divSourceFile.style.display == 'block') {
                                                                    this.divSourceFile.style.display = 'none';
@@ -449,7 +495,7 @@ class Documents extends Component {
                                                                }
                                                                this.divSourceUrlDoc.style.display = 'none';
                                                                this.selectedSourceType = "FILE";
-                                                               this.inputDocUrl = "";
+                                                               this.inputDocUrl.value = "";
                                                            }}
                                                     />
                                                     File
@@ -463,7 +509,7 @@ class Documents extends Component {
                                                        className="hide">Upload a documentation
                                                                         file</p>
                                                 </label>
-                                                <div id="fileNameDiv" ref={(div) => {
+                                                {/*<div id="fileNameDiv" ref={(div) => {
                                                     this.divFileName = div
                                                 }}
                                                      style={{display: 'none'}}></div>
@@ -482,13 +528,12 @@ class Documents extends Component {
                                                         }
                                                 >
                                                     Change File
-                                                </button>
+                                                </button>*/}
                                                 <div id="fileDiv" ref={(div) => {
                                                     this.divSourceFile = div
                                                 }} style={{display: 'none'}}>
                                                     <form className="form-horizontal">
                                                         <div>
-
                                                             <input id="doc-file-text"
                                                                    ref={(input) => {
                                                                        this.inputDocFileText = input
@@ -507,7 +552,7 @@ class Documents extends Component {
                                                                     <input ref={(input) => {
                                                                         this.inputBrowsedFile = input
                                                                     }} type="file" onChange={() => {
-                                                                        this.inputDocFileText.value = this.inputBrowsedFile.value;
+                                                                        this.inputDocFileText.value = this.inputBrowsedFile.value.split("\\").pop();
                                                                     }} multiple/>
                                                                 </button>
                                                             </div>
@@ -529,7 +574,7 @@ class Documents extends Component {
                                         this.btnAddDocSubmit = button
                                     }}
                                             onClick={() => {
-                                                this.createDocHandler;
+                                                this.createDocHandler();
                                             }}>Add
                                     </button>
                                     <button type="button" className="btn btn-primary"
@@ -545,28 +590,27 @@ class Documents extends Component {
                             </div>
 
                         </div>
-
-                        {/*Enod of   row */}
                     </div>
 
-                    <div className="doc-content">
+                    <div className="doc-content" ref={(div)=>{this.divDocContent = div }}>
                         <table
                             className="table table-striped table-hover table-bordered display data-table"
-                            id="doc-table">
+                            id="doc-table" ref={(table) => this.tblDocs = table}>
                             <thead>
                             <tr>
-                                <th className="doc-listing-Id">Id</th>
-                                <th className="doc-listing-name">Name</th>
-                                <th>Source</th>
-                                {/*<!-- TODO add Modified Date column once the service implementation is completed. -->*/}
-                                <th className="doc-listing-action">Actions</th>
+                                <th>Name</th>
+                                <th>Source Type</th>
+                                <th>Summary</th>
+                                <th>Source URL</th>
+                                <th>Actions</th>
                             </tr>
                             </thead>
                             <tbody>
+
                             </tbody>
                         </table>
                     </div>
-                    <div id="no-docs-div" className="message message-info"
+                    <div id="no-docs-div" ref= {(div)=> {this.divNoDocs = div }} className="message message-info"
                          style={{display: 'none'}}>
                         <h4><i
                             className="icon fw fw-info"></i>No documentation associated with the API

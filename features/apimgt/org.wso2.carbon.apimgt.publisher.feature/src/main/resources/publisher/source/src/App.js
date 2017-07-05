@@ -25,22 +25,38 @@ import ApiCreate from './app/components/Apis/Create/ApiCreate'
 import AuthManager from './app/data/AuthManager'
 import qs from 'qs'
 
+import 'antd/dist/antd.css';
 import './App.css'
 
 /**
  * Render protected application paths
  */
 class Protected extends Component {
+    constructor(props) {
+        super(props);
+        this.state = {showLeftMenu: false};
+        this.setLeftMenu = this.setLeftMenu.bind(this);
+    }
+
+    /**
+     * Change the visibility state of left side navigation menu bar
+     * @param {boolean} status : Whether or not to show or hide left side navigation menu
+     */
+    setLeftMenu(status) {
+        this.setState({
+            showLeftMenu: status
+        });
+    }
 
     render() {
         // Note: AuthManager.getUser() method is a passive check, which simply check the user availability in browser storage,
         // Not actively check validity of access token from backend
         if (AuthManager.getUser()) {
             return (
-                <Base>
+                <Base showLeftMenu={this.state.showLeftMenu}>
                     <Switch>
-                        <Route exact path={"/"} component={ApiCreate}/>
-                        <Route path={"/apis"} component={Apis}/>
+                        <Route exact path={"/"} component={ApiCreate}/>{/* TODO: redirects to apis listing or render apis listing here ~tmkb*/}
+                        <Route path={"/apis"} render={ props => (<Apis setLeftMenu={this.setLeftMenu}/>)}/>
                         <Route path={"/api/create"} component={ApiCreate}/>
                         <Route component={PageNotFound}/>
                     </Switch>

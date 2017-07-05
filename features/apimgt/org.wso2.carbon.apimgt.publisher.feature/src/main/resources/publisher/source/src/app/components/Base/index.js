@@ -17,31 +17,51 @@
  */
 
 import React, {Component} from 'react'
-import Footer from './Footer/Footer'
-import Header from './Header/Header'
 
-import LeftNav from './Navigation/LeftNav'
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.min.css';
+import  NavBar  from '../Apis/Details/NavBar';
+import {Layout, Breadcrumb, Icon, Menu} from 'antd';
+import ComposeHeader from './Header/ComposeHeader'
+import Footer from './Footer/Footer'
+const {Content, Sider} = Layout;
+
 
 class Base extends Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            collapsed: false,
+            mode: 'inline'
+        }
+    }
+
+    onCollapse = (collapsed) => {
+        console.log(collapsed);
+        this.setState({
+            collapsed,
+            mode: collapsed ? 'vertical' : 'inline',
+        });
+    }
 
     render() {
         return (
-            <div>
-                <ToastContainer />
-                <Header/>
-                <div className="page-content-wrapper sidebar-target">
-                    <LeftNav/>
-                    {/* page content */}
-                    <div className="container-fluid">
-                        <div className="body-wrapper">
+            <Layout style={{height: "100vh"}}>
+                <ComposeHeader />
+                <Content style={{padding: '0 20px', background: '#fff'}}>
+                    <Layout style={{padding: '0', background: '#fff'}}>
+                        {this.props.showLeftMenu ?
+                            <Sider
+                                collapsed={this.state.collapsed}
+                                onCollapse={this.onCollapse}
+                                width={200} style={{padding: '20px 0', background: '#fff'}}>
+                                <NavBar/>
+                            </Sider> : <div/>}
+                        <Content style={{padding: '20px 0', minHeight: 280}}>
                             {this.props.children}
-                        </div>
-                    </div>
-                </div>
-                <Footer/>
-            </div>
+                        </Content>
+                    </Layout>
+                </Content>
+                <Footer />
+            </Layout>
         );
     }
 }

@@ -4115,6 +4115,81 @@ public class ApiMgtDAO {
         return applications;
     }
 
+    public Application[] getAllLightWeightApplications() throws
+            APIManagementException {
+
+        Connection connection;
+        Statement stmt = null;
+        ResultSet rs;
+        Application[] applications = null;
+        String sqlQuery = SQLConstants.GET_APPLICATIONS_PREFIX;
+        Subscriber subscriber;
+
+        try {
+            connection = APIMgtDBUtil.getConnection();
+            String blockingFilerSql = null;
+            if (connection.getMetaData().getDriverName().contains("MS SQL") ||
+                    connection.getMetaData().getDriverName().contains("Microsoft")) {
+                sqlQuery = sqlQuery.replaceAll("NAME", "cast(NAME as varchar(100)) collate " +
+                        "SQL_Latin1_General_CP1_CI_AS as NAME");
+                blockingFilerSql = " select distinct x.*,bl.ENABLED from ( " + sqlQuery + " )x left join " +
+                        "AM_BLOCK_CONDITIONS bl on  ( bl.TYPE = 'APPLICATION' AND bl.VALUE = (x.USER_ID + ':') + x" +
+                        ".name)";
+            } else {
+                blockingFilerSql = " select distinct x.*,bl.ENABLED from ( " + sqlQuery
+                        + " )x left join AM_BLOCK_CONDITIONS bl on  ( bl.TYPE = 'APPLICATION' AND bl.VALUE = "
+                        + "concat(concat(x.USER_ID,':'),x.name))";
+            }
+            stmt = connection.createStatement();
+            rs = stmt.executeQuery(blockingFilerSql);
+
+            ArrayList<Application> applicationsList = new ArrayList<Application>();
+            Application application;
+            Map<String,String> applicationAttributes;
+            int applicationId = 0;
+            while (rs.next()) {
+                subscriber = new Subscriber(rs.getString("USER_ID"));
+                subscriber.setId(rs.getInt("SUBSCRIBER_ID"));
+                application = new Application(rs.getString("NAME"), subscriber);
+
+                applicationId = rs.getInt("APPLICATION_ID");
+                application.setId(applicationId);
+                application.setTier(rs.getString("APPLICATION_TIER"));
+                application.setCallbackUrl(rs.getString("CALLBACK_URL"));
+                application.setDescription(rs.getString("DESCRIPTION"));
+                application.setStatus(rs.getString("APPLICATION_STATUS"));
+                application.setGroupId(rs.getString("GROUP_ID"));
+                application.setUUID(rs.getString("UUID"));
+                application.setIsBlackListed(rs.getBoolean("ENABLED"));
+                application.setOwner(rs.getString("CREATED_BY"));
+                application.setTokenType(rs.getString("TOKEN_TYPE"));
+                applicationAttributes = getApplicationAttributes(connection, applicationId);
+                application.setApplicationAttributes(applicationAttributes);
+                if (multiGroupAppSharingEnabled) {
+                    setGroupIdInApplication(application);
+                }
+                applicationsList.add(application);
+            }
+            Collections.sort(applicationsList, new Comparator<Application>() {
+                public int compare(Application o1, Application o2) {
+                    return o1.getName().compareToIgnoreCase(o2.getName());
+                }
+            });
+            applications = applicationsList.toArray(new Application[applicationsList.size()]);
+        } catch (SQLException e) {
+            handleException("Error when reading the application information from" + " the persistence store.", e);
+        } finally {
+            if (stmt != null) {
+                try {
+                    stmt.close();
+                } catch (SQLException e) {
+                    log.warn("Database error. Could not close Statement. Continuing with others." + e.getMessage(), e);
+                }
+            }
+        }
+        return applications;
+    }
+
     /**
      * Returns all the consumerkeys of application which are subscribed for the given api
      *

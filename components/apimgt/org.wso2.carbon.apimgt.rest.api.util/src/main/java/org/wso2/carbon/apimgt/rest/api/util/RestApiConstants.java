@@ -162,4 +162,7 @@ public final class RestApiConstants {
     public static final String ETAG = "ETag";
     public static final String PUT = "PUT";
     public static final String DELETE = "DELETE";
+
+    //System property 'migrationEnabled' set at server startup
+    public static final String MIGRATION_ENABLED = "migrationEnabled";
 }

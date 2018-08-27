@@ -1777,6 +1777,12 @@ paths:
         - $ref: '#/parameters/offset'
         - $ref: '#/parameters/Accept'
         - $ref: '#/parameters/If-None-Match'
+        - name: get-all-user-apps
+          in: query
+          description: |
+               Whether to get the applications of all the users of all tenants
+          required: false
+          type: boolean
       tags:
         - Application (Collection)
       responses:

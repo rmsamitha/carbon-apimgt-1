@@ -149,7 +149,7 @@ public class ApplicationImportExportManager {
                     Tier tier = subscribedAPI.getTier();
                     //checking whether the target tier is available
                     if (isTierAvailable(tier, api) && api.getStatus() != null && api.getStatus()
-                            .equals(APIStatus.PUBLISHED)) {
+                            .equals(APIStatus.PUBLISHED.getStatus())) {
                         apiId.setTier(tier.getName());
                         apiConsumer.addSubscription(apiId, userId, appId);
                     } else {

@@ -86,6 +86,7 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.validation.ConstraintViolation;
+import javax.ws.rs.core.Response;
 
 public class RestApiUtil {
 
@@ -1291,5 +1292,49 @@ public class RestApiUtil {
             RestApiUtil.handleInternalServerError("Unable to resolve ETag skip list in api-manager.xml", e, log);
         }
         return false;
+    }
+
+    public static void handleMigrationSpecificPermissionViolations(String targetTenantDomain, String username) {
+        boolean isCrossTenantAccess = !targetTenantDomain.equals
+                (MultitenantUtils.getTenantDomain(username));
+        if (!isCrossTenantAccess) {
+            return;
+        }
+        boolean migrationEnabled = Boolean.getBoolean(RestApiConstants.MIGRATION_ENABLED);
+        String superAdminRole = null;
+        try {
+            superAdminRole = ServiceReferenceHolder.getInstance().getRealmService().
+                    getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID).getRealmConfiguration().getAdminRoleName();
+        } catch (UserStoreException e) {
+            RestApiUtil.handleInternalServerError("Error in getting super admin role name", e, log);
+        }
+
+        //check whether logged in user is a super tenant user
+        String superTenantDomain = null;
+        try {
+            superTenantDomain = ServiceReferenceHolder.getInstance().getRealmService().getTenantManager().getSuperTenantDomain();
+        } catch (UserStoreException e) {
+            RestApiUtil.handleInternalServerError("Error in getting the super tenant domain", e, log);
+        }
+        boolean isSuperTenantUser = RestApiUtil.getLoggedInUserTenantDomain().equals(superTenantDomain);
+
+        //check whether the user has super tenant admin role
+        boolean isSuperAdminRoleNameExist = false;
+        try {
+            isSuperAdminRoleNameExist = APIUtil.isRoleNameExist(username, superAdminRole);
+        } catch (APIManagementException e) {
+            RestApiUtil.handleInternalServerError("Error in checking whether the user has admin role", e, log);
+        }
+
+        boolean isSuperTenantAdmin = isSuperTenantUser && isSuperAdminRoleNameExist;
+        boolean hasMigrationSpecificPermissions = migrationEnabled && isSuperTenantAdmin;
+
+        if (!hasMigrationSpecificPermissions) {
+            String errorMsg = "Cross Tenant resource access is not allowed for this request. Both the facts; setting " +
+                    "'migrationEnabled=true' system property set at APIM Server startup and the requester being a super " +
+                    "tenant admin, should be satisfied for this to be allowed";
+            ErrorDTO errorDTO = getErrorDTO(RestApiConstants.STATUS_FORBIDDEN_MESSAGE_DEFAULT, 403l, errorMsg);
+            throw new ForbiddenException(errorDTO);
+        }
     }
 }

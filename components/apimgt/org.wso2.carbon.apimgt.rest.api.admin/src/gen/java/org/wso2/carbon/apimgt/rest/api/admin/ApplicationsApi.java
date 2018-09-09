@@ -64,9 +64,9 @@ public class ApplicationsApi  {
     @ApiParam(value = "Starting point within the complete list of items qualified.\n", defaultValue="0") @QueryParam("offset") Integer offset,
     @ApiParam(value = "Media types acceptable for the response. Default is application/json.\n"  , defaultValue="application/json")@HeaderParam("Accept") String accept,
     @ApiParam(value = "Validator for conditional requests; based on the ETag of the formerly retrieved\nvariant of the resource (Will be supported in future).\n"  )@HeaderParam("If-None-Match") String ifNoneMatch,
-    @ApiParam(value = "Whether to get the applications of all the users of all tenants\n") @QueryParam("get-all-user-apps")  Boolean getAllUserApps)
+    @ApiParam(value = "Whether to get the applications of all the users of all tenants\n") @QueryParam("tenantDomain")  String tenantDomain)
     {
-    return delegate.applicationsGet(user,limit,offset,accept,ifNoneMatch,getAllUserApps);
+    return delegate.applicationsGet(user,limit,offset,accept,ifNoneMatch,tenantDomain);
     }
 }
 

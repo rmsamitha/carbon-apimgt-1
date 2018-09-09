@@ -4115,16 +4115,18 @@ public class ApiMgtDAO {
         return applications;
     }
 
-    public Application[] getAllLightWeightApplications() throws
+    public Application[] getLightWeightApplicationsOfTenant(String appTenantDomain) throws
             APIManagementException {
 
         Connection connection;
-        Statement stmt = null;
+        PreparedStatement prepStmt = null;
         ResultSet rs;
         Application[] applications = null;
         String sqlQuery = SQLConstants.GET_APPLICATIONS_PREFIX;
         Subscriber subscriber;
 
+        String whereClause = "AND SUB.TENANT_ID=?";
+        sqlQuery += whereClause ;
         try {
             connection = APIMgtDBUtil.getConnection();
             String blockingFilerSql = null;
@@ -4140,8 +4142,11 @@ public class ApiMgtDAO {
                         + " )x left join AM_BLOCK_CONDITIONS bl on  ( bl.TYPE = 'APPLICATION' AND bl.VALUE = "
                         + "concat(concat(x.USER_ID,':'),x.name))";
             }
-            stmt = connection.createStatement();
-            rs = stmt.executeQuery(blockingFilerSql);
+
+            int appTenantId = APIUtil.getTenantIdFromTenantDomain(appTenantDomain);
+            prepStmt = connection.prepareStatement(blockingFilerSql);
+            prepStmt.setInt(1, appTenantId);
+            rs = prepStmt.executeQuery();
 
             ArrayList<Application> applicationsList = new ArrayList<Application>();
             Application application;
@@ -4179,9 +4184,9 @@ public class ApiMgtDAO {
         } catch (SQLException e) {
             handleException("Error when reading the application information from" + " the persistence store.", e);
         } finally {
-            if (stmt != null) {
+            if (prepStmt != null) {
                 try {
-                    stmt.close();
+                    prepStmt.close();
                 } catch (SQLException e) {
                     log.warn("Database error. Could not close Statement. Continuing with others." + e.getMessage(), e);
                 }

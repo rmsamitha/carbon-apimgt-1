@@ -1294,7 +1294,16 @@ public class RestApiUtil {
         return false;
     }
 
-    public static void handleMigrationSpecificPermissionViolations(String targetTenantDomain, String username) {
+    /**
+     * Handle if any cross tenant access permission violations detected. Cross tenant resources (apis/apps) can be
+     * retrieved only by super tenant admin user, only while a migration process(2.6.0 to 3.0.0). APIM server has to be
+     * started with the system property 'migrationEnabled=true' if a migration related exports are to be done.
+     *
+     * @param targetTenantDomain Tenant domain of which resources are requested
+     * @param username           Resource requester/logged in user name
+     * @throws ForbiddenException
+     */
+    public static void handleMigrationSpecificPermissionViolations(String targetTenantDomain, String username) throws ForbiddenException {
         boolean isCrossTenantAccess = !targetTenantDomain.equals
                 (MultitenantUtils.getTenantDomain(username));
         if (!isCrossTenantAccess) {
@@ -1330,7 +1339,8 @@ public class RestApiUtil {
         boolean hasMigrationSpecificPermissions = migrationEnabled && isSuperTenantAdmin;
 
         if (!hasMigrationSpecificPermissions) {
-            String errorMsg = "Cross Tenant resource access is not allowed for this request. Both the facts; setting " +
+            String errorMsg = "Cross Tenant resource access is not allowed for this request. User " + username +
+                    " is not allowed to access resources in " + targetTenantDomain + ".Both the facts; setting " +
                     "'migrationEnabled=true' system property set at APIM Server startup and the requester being a super " +
                     "tenant admin, should be satisfied for this to be allowed";
             ErrorDTO errorDTO = getErrorDTO(RestApiConstants.STATUS_FORBIDDEN_MESSAGE_DEFAULT, 403l, errorMsg);
